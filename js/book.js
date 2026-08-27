@@ -670,8 +670,35 @@ function drawTurtle(c,cx,cy,r){
   c.beginPath(); c.ellipse(cx,cy,r*.97,r*.77,0,Math.PI*1.05,Math.PI*1.95); c.stroke();
 }
 
-function drawBubble(c,x,y,w,h,text,tailX,tailY){
-  var r=h*.34;
+/* 對話框：自動換行、字太多就縮字級，尾巴指向烏龜 */
+function bubbleLines(c,text,maxW){
+  var out=[];
+  String(text).split(/<br\s*\/?>|\n/).forEach(function(seg){
+    var line='';
+    for(var i=0;i<seg.length;i++){
+      var t=line+seg.charAt(i);
+      if(line && c.measureText(t).width>maxW){ out.push(line); line=seg.charAt(i); }
+      else line=t;
+    }
+    out.push(line);
+  });
+  return out;
+}
+
+function drawBubble(c,text,SZ,tailX,tailY){
+  var maxW=SZ*.78, fs=Math.round(SZ*.078);
+  function setF(){ c.font='500 '+fs+'px "Noto Serif TC",serif'; }
+  setF();
+  var lines=bubbleLines(c,text,maxW);
+  while(lines.length>3 && fs>SZ*.048){ fs-=3; setF(); lines=bubbleLines(c,text,maxW); }
+
+  var lh=fs*1.40, padX=fs*.70, padY=fs*.52, tw=0;
+  lines.forEach(function(l){ tw=Math.max(tw,c.measureText(l).width); });
+  var w=Math.min(maxW,tw)+padX*2, h=lines.length*lh+padY*2;
+  var x=Math.max(SZ*.02, Math.min(SZ*.98-w, tailX-w*.42));
+  var y=Math.max(SZ*.02, tailY-h-SZ*.04);
+  var r=Math.min(h*.34, fs*.9);
+
   c.save();
   c.shadowColor='rgba(0,0,0,.28)'; c.shadowBlur=14; c.shadowOffsetY=4;
   c.fillStyle='#F6F1E4';
@@ -682,44 +709,53 @@ function drawBubble(c,x,y,w,h,text,tailX,tailY){
   c.arcTo(x,y+h,x,y,r);
   c.arcTo(x,y,x+w,y,r);
   c.closePath(); c.fill();
+  /* 尾巴：從框底指向烏龜，錨點夾在圓角之間才不會露在外面 */
+  var t0=Math.max(x+r, Math.min(x+w-r-fs*.9, tailX-fs*.75));
   c.beginPath();
-  c.moveTo(x+w*.60, y+h-2);
+  c.moveTo(t0, y+h-2);
   c.lineTo(tailX, tailY);
-  c.lineTo(x+w*.82, y+h-2);
+  c.lineTo(t0+fs*.9, y+h-2);
   c.closePath(); c.fill();
   c.restore();
 
   c.fillStyle='#1B2340';
   c.textAlign='center'; c.textBaseline='middle';
-  c.font='500 '+Math.round(h*.34)+'px "Noto Serif TC",serif';
-  c.fillText(text, x+w/2, y+h/2);
+  setF();
+  lines.forEach(function(l,i){ c.fillText(l, x+w/2, y+padY+lh*(i+.5)); });
 }
 
-function petTexture(url){
+/* 每一格一隻烏龜：cfg = { text, side, y, size, image } */
+function petTexture(cfg){
   var SZ=512;
   var c=document.createElement('canvas'); c.width=c.height=SZ;
   var ctx=c.getContext('2d');
-  var cfg=(S.effects && S.effects.pet) || {};
-  var text=cfg.text || '';
+  var text=cfg.text||'';
+  /* side 是從哪一邊探進來，所以頭要朝畫面內側，左進朝右、右進朝左 */
+  var flip=(cfg.side!=='left');
+  var tcx=SZ*.44, tcy=SZ*.74, tr=SZ*.19;
+  var headX=flip ? SZ-tcx : tcx;
 
   function compose(img){
     ctx.clearRect(0,0,SZ,SZ);
+    ctx.save();
+    if(flip){ ctx.translate(SZ,0); ctx.scale(-1,1); }
     if(img){
       var s=Math.min(SZ*.54/img.width, SZ*.54/img.height);
-      ctx.drawImage(img, SZ*.44-img.width*s/2, SZ*.72-img.height*s/2, img.width*s, img.height*s);
+      ctx.drawImage(img, tcx-img.width*s/2, tcy-img.height*s/2, img.width*s, img.height*s);
     }else{
-      drawTurtle(ctx, SZ*.40, SZ*.72, SZ*.20);
+      drawTurtle(ctx, tcx, tcy, tr);
     }
-    if(text) drawBubble(ctx, SZ*.03, SZ*.15, SZ*.82, SZ*.25, text, SZ*.50, SZ*.55);
+    ctx.restore();
+    if(text) drawBubble(ctx, text, SZ, headX, tcy-tr*1.10);
   }
 
   compose(null);
   var t=new THREE.CanvasTexture(c);
   t.minFilter=THREE.LinearFilter;
-  if(url){
+  if(cfg.image){
     var im=new Image(); im.crossOrigin='anonymous';
     im.onload=function(){ compose(im); t.needsUpdate=true; };
-    im.src=url;
+    im.src=cfg.image;
   }
   return t;
 }
@@ -727,13 +763,37 @@ function petTexture(url){
 /* -------------------------------------------------------------------------
    時間軸資料 → 每一格的組成
    ------------------------------------------------------------------------- */
-var ENTRIES = (S.timeline || []).map(function(t){
+/* -------------------------------------------------------------------------
+   寵物設定：全站給預設，每一格用 timeline[n].pet 覆寫
+   pet 可以只寫字串（當成 text），或寫完整物件 { text, side, y, size, image }。
+   寫 false 或 { on:false } 就是這一格不出現。
+   ------------------------------------------------------------------------- */
+var PETDEF = (S.effects && S.effects.pet) || {};
+function petOf(t,i){
+  if(PETDEF.on===false) return null;
+  var p=t.pet;
+  if(p===false) return null;
+  if(typeof p==='string') p={text:p};
+  p=p||{};
+  if(p.on===false) return null;
+  function pick(k,d){ return p[k]!=null ? p[k] : (PETDEF[k]!=null ? PETDEF[k] : d); }
+  return {
+    text : p.text!=null ? p.text : '',
+    /* 沒指定就左右交替，讓每一格的烏龜不會都停在同一個位置 */
+    side : p.side || PETDEF.side || ((i%2) ? 'left' : 'right'),
+    y    : pick('y',    -0.26),
+    size : pick('size',  0.34),
+    image: pick('image', null)
+  };
+}
+
+var ENTRIES = (S.timeline || []).map(function(t,i){
   var bg = t.bg || ['#CFE0D6','#E7E0CB','#F0E6D2'];
   return {
     date: t.date || '', label: t.label || '', place: t.place || '',
     line: t.text || '', pending: !!t.pending,
     photo: t.photo || null, photoLayers: t.photoLayers || null,
-    tilt: t.tilt || 0,
+    tilt: t.tilt || 0, pet: petOf(t,i),
     build: SCENES[t.scene] || genericScene(bg),
     fallback: 'linear-gradient(180deg,'+bg[0]+','+bg[1]+' 55%,'+bg[2]+')',
     layers: []
@@ -785,6 +845,10 @@ window.BOOK=api;
 var prog=1, from=0;
 function setEntry(i){
   if(i===cur) return;
+  /* 上一次轉場還沒跑完就又換格：先把那時的舊格收掉。
+     不收的話它會一直留在 visible=true，而且每次新轉場的 a=1-e 都從 1 開始，
+     等於每切一格它就整格閃一下。 */
+  if(prog<1 && groups && groups[from] && from!==i) groups[from].visible=false;
   from=cur; cur=i; prog=0;
   if(groups && groups[cur]) groups[cur].visible=true;
   if(pageEl.classList.contains('nogl')) pageEl.style.setProperty('--fallback',ENTRIES[cur].fallback);
@@ -851,12 +915,13 @@ function fit(mesh,z,over){
 }
 
 /* 照片在畫面中的佔比：寬螢幕小一點，直式手機大一點，
-   讓拆層照片不管什麼裝置都好好待在正中間 */
+   讓拆層照片不管什麼裝置都好好待在正中間。
+   effects.photoScale 是整體倍率，1 = 原本大小。 */
 function photoOver(){
   var a=camera.aspect;
-  if(a>1.20) return 0.62;
-  if(a>0.85) return 0.80;
-  return 1.02;
+  var k=(S.effects && S.effects.photoScale) || 1;
+  var base = (a>1.20) ? 0.62 : (a>0.85) ? 0.80 : 1.02;
+  return base*k;
 }
 
 function frameWorld(z){
@@ -903,13 +968,14 @@ function buildPhoto(e,g){
 }
 
 function buildPet(e,g){
-  var cfg=(S.effects && S.effects.pet) || {};
-  if(!cfg.on) return;
+  var cfg=e.pet;
+  if(!cfg) return;
   var z=-1.2;
   var m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-    new THREE.MeshBasicMaterial({map:petTexture(cfg.image),transparent:true,depthWrite:false}));
+    new THREE.MeshBasicMaterial({map:petTexture(cfg),transparent:true,depthWrite:false}));
   m.userData.pet=true;
   m.userData.side=(cfg.side==='left')?-1:1;
+  m.userData.yf=cfg.y; m.userData.sz=cfg.size;
   m.userData.z=z; m.userData.k=0;
   m.position.set(0,0,z);
   g.add(m); e.layers.push(m);
@@ -943,12 +1009,12 @@ function buildEntries(){
 /* 烏龜擺在相框角落外側，滑進來時往內移 */
 function placePet(m){
   var F=frameWorld(m.userData.z);
-  var size=F.fw*0.34;
+  var size=F.fw*(m.userData.sz||0.34);
   m.scale.set(size,size,1);
   var edge=F.fw/2, d=m.userData.side;
   m.userData.hideX = d*(edge + size*0.58);
   m.userData.showX = d*(edge - size*0.30);
-  m.userData.baseY = F.cy - F.fh*0.26;
+  m.userData.baseY = F.cy + F.fh*(m.userData.yf!=null?m.userData.yf:-0.26);
   m.userData.bob   = size*0.05;
 }
 
@@ -1028,6 +1094,8 @@ function tick(){
 
   groups.forEach(function(g,gi){
     if(!g.visible) return;
+    /* 場上只該有 cur 與 from 兩格，其餘一律收掉 */
+    if(gi!==cur && gi!==from){ g.visible=false; return; }
     var incoming = gi===cur;
     var a = incoming ? e : 1-e;
 

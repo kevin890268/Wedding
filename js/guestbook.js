@@ -1,125 +1,148 @@
 /* =========================================================================
-   guestbook.js — 祝福牆（Firebase Firestore）
-   未設定 SITE.guestbook.firebase 時：隱藏表單、顯示說明，不報錯
-   Firestore 規則建議（Console → 規則）：
-     match /wishes/{id} {
-       allow read: if true;
-       allow create: if request.resource.data.keys().hasOnly(['name','text','createdAt'])
-                     && request.resource.data.name is string
-                     && request.resource.data.name.size() <= 20
-                     && request.resource.data.text is string
-                     && request.resource.data.text.size() <= 200;
-       allow update, delete: if false;
-     }
+   guestbook.js — 祝福牆（Google Apps Script Web App）
+
+   後端程式碼與部署步驟：tools/guestbook.gs
+   設定在 data.js 的 SITE.guestbook：
+     endpoint   Apps Script 的 /exec 網址，沒填就顯示「準備中」並隱藏表單
+     poll       每幾秒重新抓一次；0 = 只在載入時抓
+
+   留言會不會立刻上牆是後端說了算（guestbook.gs 的 GRACE_DAYS），
+   POST 的回應帶 visible 告訴前端，這裡照著給不同的提示。
+
+   為什麼 POST 用 text/plain：
+   Apps Script 的 Web App 不處理 CORS preflight（OPTIONS）。
+   Content-Type 一旦是 application/json 就會觸發 preflight 而直接失敗，
+   所以把 JSON 當純文字送，後端自己 JSON.parse。
    ========================================================================= */
 (function () {
 'use strict';
 
 var S    = window.SITE || {};
-var cfg  = (S.guestbook || {}).firebase;
+var cfg  = S.guestbook || {};
+var url  = cfg.endpoint;
 var form = document.getElementById('gbForm');
 var list = document.getElementById('gbList');
 var msg  = document.getElementById('gbMsg');
 if (!list) return;
 
-if (!cfg) {
+if (!url) {
   list.innerHTML = '<li class="gb-empty">祝福牆準備中，敬請期待。</li>';
   return;
 }
 
-var SDK = 'https://www.gstatic.com/firebasejs/9.23.0/';
-load(SDK + 'firebase-app-compat.js')
-  .then(function () { return load(SDK + 'firebase-firestore-compat.js'); })
-  .then(init)
-  .catch(function () {
-    list.innerHTML = '<li class="gb-empty">祝福牆暫時無法載入。</li>';
-  });
+var loaded = false;
+form.hidden = false;
+render(null, '載入中…');
+fetchWishes();
 
-function load(src) {
-  return new Promise(function (res, rej) {
-    var s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
+var every = Number(cfg.poll) || 0;
+if (every > 0) {
+  setInterval(function () {
+    if (document.hidden) return;      /* 分頁在背景就不用一直打 */
+    fetchWishes();
+  }, every * 1000);
 }
 
-function init() {
-  var app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
-  var db  = firebase.firestore(app);
-  var col = db.collection('wishes');
-
-  form.hidden = false;
-
-  col.orderBy('createdAt', 'desc').limit(100).onSnapshot(function (snap) {
-    if (snap.empty) {
-      list.innerHTML = '<li class="gb-empty">還沒有留言，來當第一個吧。</li>';
-      return;
-    }
-    list.innerHTML = '';
-    snap.forEach(function (doc) {
-      var d = doc.data();
-      var li = document.createElement('li');
-
-      var head = document.createElement('div');
-      var n = document.createElement('span');
-      n.className = 'gb-name';
-      n.textContent = d.name || '匿名';
-      head.appendChild(n);
-
-      if (d.createdAt && d.createdAt.toDate) {
-        var t = document.createElement('span');
-        t.className = 'gb-time';
-        t.textContent = fmt(d.createdAt.toDate());
-        head.appendChild(t);
-      }
-
-      var p = document.createElement('p');
-      p.className = 'gb-text';
-      p.textContent = d.text || '';        // textContent → 天然防注入
-
-      li.appendChild(head); li.appendChild(p);
-      list.appendChild(li);
+function fetchWishes() {
+  fetch(url + '?t=' + Date.now(), { method: 'GET', redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) throw new Error(d && d.error || 'bad response');
+      loaded = true;
+      render(d.wishes || []);
+    })
+    .catch(function () {
+      if (!loaded) render(null, '祝福牆暫時無法載入。');
     });
-  }, function () {
-    list.innerHTML = '<li class="gb-empty">祝福牆暫時無法載入。</li>';
+}
+
+function render(wishes, note) {
+  if (note) { list.innerHTML = '<li class="gb-empty">' + note + '</li>'; return; }
+  if (!wishes.length) {
+    list.innerHTML = '<li class="gb-empty">還沒有留言，來當第一個吧。</li>';
+    return;
+  }
+  var frag = document.createDocumentFragment();
+  wishes.forEach(function (w) {
+    var li = document.createElement('li');
+
+    var head = document.createElement('div');
+    var n = document.createElement('span');
+    n.className = 'gb-name';
+    n.textContent = w.name || '匿名';
+    head.appendChild(n);
+
+    if (w.at) {
+      var t = document.createElement('span');
+      t.className = 'gb-time';
+      t.textContent = fmt(w.at);
+      head.appendChild(t);
+    }
+
+    var p = document.createElement('p');
+    p.className = 'gb-text';
+    p.textContent = w.text || '';      /* textContent → 天然防注入 */
+
+    li.appendChild(head); li.appendChild(p);
+    frag.appendChild(li);
   });
+  list.innerHTML = '';
+  list.appendChild(frag);
+}
 
-  var last = 0;
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var now = Date.now();
-    if (now - last < 20000) { say('請稍候再送出一則'); return; }
+var last = 0;
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var now = Date.now();
+  if (now - last < 20000) { say('請稍候再送出一則'); return; }
 
-    var name = form.name.value.trim().slice(0, 20);
-    var text = form.text.value.trim().slice(0, 200);
-    if (!name || !text) { say('請填寫稱呼與祝福'); return; }
+  var name = form.name.value.trim().slice(0, 20);
+  var text = form.text.value.trim().slice(0, 200);
+  if (!name || !text) { say('請填寫稱呼與祝福'); return; }
 
-    var btn = form.querySelector('button[type=submit]');
-    btn.disabled = true; say('送出中…');
+  var btn = form.querySelector('button[type=submit]');
+  btn.disabled = true; say('送出中…');
 
-    col.add({
+  fetch(url, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
       name: name,
       text: text,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function () {
+      website: form.website ? form.website.value : ''   /* 蜜罐，機器人才會填 */
+    })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) throw new Error(d && d.error || 'rejected');
       last = now;
       form.reset();
-      say('謝謝你的祝福');
-    }).catch(function () {
+      if (d.visible === false) {
+        say('謝謝你的祝福，審核後會出現在牆上');
+      } else {
+        say('謝謝你的祝福');
+        fetchWishes();               /* 立刻上牆 → 馬上重抓，讓他看見自己那則 */
+      }
+    })
+    .catch(function () {
       say('送出失敗，請稍後再試');
-    }).then(function () {
+    })
+    .then(function () {
       btn.disabled = false;
     });
-  });
+});
 
-  function say(s) {
-    msg.textContent = s;
-    clearTimeout(say.t);
-    say.t = setTimeout(function () { msg.textContent = ''; }, 4000);
-  }
+function say(s) {
+  msg.textContent = s;
+  clearTimeout(say.t);
+  say.t = setTimeout(function () { msg.textContent = ''; }, 5000);
 }
 
-function fmt(d) {
+/* 後端送 ISO 字串過來 */
+function fmt(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return '';
   var p = function (n) { return n < 10 ? '0' + n : '' + n; };
   return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate());
 }
