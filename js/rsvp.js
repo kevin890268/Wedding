@@ -22,10 +22,10 @@ if (cfg.url) {
   var contacts = (cfg.contacts || []).filter(function (c) { return c && (c.name || c.phone); });
   var html =
     '<div class="fallback">' +
-      '<p>線上回覆表單建置中。<br>' +
+      '<p>線上回覆表單準備中，敬請稍候。<br>' +
       (contacts.length
-        ? '在開放前，可直接聯絡我們：'
-        : '在開放前，請直接與新人聯繫。') +
+        ? '如需先行回覆，歡迎直接與我們聯繫：'
+        : '如需先行回覆，敬請直接與新人聯繫。') +
       '</p>';
   if (contacts.length) {
     html += '<p style="margin-top:14px">' + contacts.map(function (c) {
@@ -35,14 +35,15 @@ if (cfg.url) {
         : name;
     }).join('<br>') + '</p>';
   }
-  html += '<p class="note">待辦：建立 Google Form / Tally，把網址填進 data.js 的 rsvp.url</p></div>';
+  /* 給賓客看的頁面，不放開發備註（待辦：建好表單後把網址填進 data.js 的 rsvp.url） */
+  html += '</div>';
   box.innerHTML = html;
 }
 
 if (dl && cfg.deadline) {
   var p = String(cfg.deadline).split('-');
   if (p.length === 3) {
-    dl.textContent = '請於 ' + p[0] + ' 年 ' + (+p[1]) + ' 月 ' + (+p[2]) + ' 日前回覆，方便我們安排席位';
+    dl.textContent = '敬請於 ' + p[0] + ' 年 ' + (+p[1]) + ' 月 ' + (+p[2]) + ' 日前回覆，以便我們安排席位，謝謝！';
   }
 }
 

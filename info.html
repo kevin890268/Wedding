@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="subpage">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>婚禮資訊 · 2027.04.17 川門子</title>
+<meta name="description" content="2027.04.17（六）川門子時尚餐廳午宴 — 時間、地點、交通、停車">
+<meta name="theme-color" content="#E9E0CE">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="婚禮資訊 · 2027.04.17 川門子">
+<meta property="og:description" content="時間、地點、交通、停車">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500;700&family=Noto+Sans+TC:wght@300;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- 獨立的婚禮資訊頁：給 LINE 圖文選單等外部連結用。
+     不載 three.js 繪本，手機打開就在頁首，捲動也輕。
+     內容跟首頁的 #info 同一份 —— 都由 data.js + site.js 產生，改字只動 data.js。 -->
+
+<nav class="subnav">
+  <a href="./">← 電子喜帖</a>
+  <span class="names" id="footNames"></span>
+</nav>
+
+<main>
+  <section id="info" class="sheet sheet--alt">
+    <div class="wrap">
+      <header class="sec-head reveal">
+        <div class="sec-kicker">DETAILS</div>
+        <h1 class="sec-title">婚禮資訊</h1>
+      </header>
+      <dl class="info" id="infoList"><!-- site.js --></dl>
+      <div class="map-actions" id="mapActions"><!-- site.js --></div>
+      <div id="mapFrame" hidden><!-- site.js --></div>
+    </div>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="js/site.js"></script>
+</body>
+</html>

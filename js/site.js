@@ -8,8 +8,9 @@ var S = window.SITE || {};
 var D = S.date || {}, V = S.venue || {}, C = S.couple || {};
 var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* 封面期間鎖捲動；用 JS 加上，萬一 JS 掛掉頁面仍可捲動 */
-document.body.classList.add('locked');
+/* 封面期間鎖捲動；用 JS 加上，萬一 JS 掛掉頁面仍可捲動。
+   info.html 這類沒有封面的分頁不能鎖，否則整頁捲不動 */
+if (document.getElementById('cover')) document.body.classList.add('locked');
 
 /* ---------- 小工具 ---------- */
 function $(id) { return document.getElementById(id); }
@@ -30,10 +31,7 @@ var dateOK  = !isNaN(startAt.getTime());
   if (D.display) $('coverDateText').textContent = D.display;
   $('coverDateSub').textContent =
     [D.weekday, D.form, V.name].filter(Boolean).join(' · ');
-  if (C.display) {
-    $('coverNames').textContent = C.display;
-    if ($('footNames')) $('footNames').textContent = C.display;
-  }
+  if (C.display) $('coverNames').textContent = C.display;
 
   var load = $('coverLoad');
   var btn  = $('open');
@@ -63,9 +61,17 @@ var dateOK  = !isNaN(startAt.getTime());
   var target = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
   if (target && target !== el) {
     openBook();
-    target.scrollIntoView({ behavior: 'auto' });
+    /* 直接跳過去，不用 html 的 scroll-behavior:smooth —— 平滑捲動要滑六千多 px，
+       途中版面一變動或手指一碰就會停在半路 */
+    var jump = function () {
+      var root = document.documentElement, prev = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      target.scrollIntoView();
+      root.style.scrollBehavior = prev;
+    };
+    jump();
     /* 圖片與字型載完版面可能再位移，載完再對齊一次 */
-    addEventListener('load', function () { target.scrollIntoView({ behavior: 'auto' }); });
+    addEventListener('load', jump);
   }
 })();
 
@@ -102,6 +108,7 @@ var dateOK  = !isNaN(startAt.getTime());
 
   var place = '<span class="big">' + esc(V.name || '') + (V.hall ? '　' + esc(V.hall) : '') + '</span>';
   place += '<span class="sub">' + (V.address ? esc(V.address) : tbd) + '</span>';
+  if (V.access) place += '<span class="sub access">' + esc(V.access) + '</span>';
   row('地點', place, V.address ? (V.name + ' ' + V.address) : null);
 
   if (V.phone) {
@@ -144,7 +151,7 @@ var dateOK  = !isNaN(startAt.getTime());
     var diff = startAt - Date.now();
     if (diff <= 0) {
       els.d.textContent = els.h.textContent = els.m.textContent = els.s.textContent = '0';
-      note.textContent = '今天，謝謝你來。';
+      note.textContent = '今天，謝謝您蒞臨。';
       return true;
     }
     var s = Math.floor(diff / 1000);
@@ -161,6 +168,9 @@ var dateOK  = !isNaN(startAt.getTime());
 
 /* ---------- 7 頁尾：聯絡人 + 加入行事曆 ---------- */
 (function footer() {
+  /* 新人姓名：首頁頁尾、info.html 頂列都用這個 id */
+  if (C.display && $('footNames')) $('footNames').textContent = C.display;
+
   var box = $('footContacts');
   var contacts = ((S.rsvp || {}).contacts || []).filter(function (c) { return c && (c.name || c.phone); });
   if (box) {

@@ -52,14 +52,14 @@ function fetchWishes() {
       render(d.wishes || []);
     })
     .catch(function () {
-      if (!loaded) render(null, '祝福牆暫時無法載入。');
+      if (!loaded) render(null, '祝福牆暫時無法載入，請稍後再試。');
     });
 }
 
 function render(wishes, note) {
   if (note) { list.innerHTML = '<li class="gb-empty">' + note + '</li>'; return; }
   if (!wishes.length) {
-    list.innerHTML = '<li class="gb-empty">還沒有留言，來當第一個吧。</li>';
+    list.innerHTML = '<li class="gb-empty">目前還沒有留言，歡迎留下第一則祝福。</li>';
     return;
   }
   var frag = document.createDocumentFragment();
@@ -94,11 +94,11 @@ var last = 0;
 form.addEventListener('submit', function (e) {
   e.preventDefault();
   var now = Date.now();
-  if (now - last < 20000) { say('請稍候再送出一則'); return; }
+  if (now - last < 20000) { say('請稍候片刻再送出下一則'); return; }
 
   var name = form.name.value.trim().slice(0, 20);
   var text = form.text.value.trim().slice(0, 200);
-  if (!name || !text) { say('請填寫稱呼與祝福'); return; }
+  if (!name || !text) { say('請填寫您的稱呼與祝福'); return; }
 
   var btn = form.querySelector('button[type=submit]');
   btn.disabled = true; say('送出中…');
@@ -119,14 +119,14 @@ form.addEventListener('submit', function (e) {
       last = now;
       form.reset();
       if (d.visible === false) {
-        say('謝謝你的祝福，審核後會出現在牆上');
+        say('謝謝您的祝福！審核後將會顯示在祝福牆上');
       } else {
-        say('謝謝你的祝福');
+        say('謝謝您的祝福！');
         fetchWishes();               /* 立刻上牆 → 馬上重抓，讓他看見自己那則 */
       }
     })
     .catch(function () {
-      say('送出失敗，請稍後再試');
+      say('抱歉，送出失敗，請稍後再試');
     })
     .then(function () {
       btn.disabled = false;

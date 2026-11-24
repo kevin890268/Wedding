@@ -279,6 +279,22 @@ a{color:inherit;}
 }
 .tl-text{font-size:.92rem;line-height:2;color:var(--muted);letter-spacing:.06em;}
 
+/* ========== 獨立分頁（info.html）==========
+   給 LINE 圖文選單等外部連結用：沒有封面、沒有繪本，底色跟區塊一樣，
+   內容比螢幕短時也不會露出首頁的深色底 */
+html.subpage,html.subpage body{background:var(--paper-2);}
+html.subpage .sheet{min-height:100vh;padding-top:clamp(36px,6vh,64px);}
+.subnav{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px clamp(16px,5vw,32px);
+  padding-top:calc(12px + env(safe-area-inset-top));
+  background:rgba(233,224,206,.94);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--edge);font-size:.85rem;
+}
+.subnav a{color:var(--ink);text-decoration:none;letter-spacing:.12em;padding:6px 0;}
+.subnav .names{font-family:"Noto Serif TC",serif;letter-spacing:.2em;color:var(--muted);}
+
 /* ========== 3 婚禮資訊 ========== */
 .info{display:grid;gap:14px;}
 .row{
@@ -293,6 +309,8 @@ a{color:inherit;}
 .row dd{font-size:.98rem;line-height:1.95;letter-spacing:.05em;user-select:text;}
 .row dd .big{font-size:1.14rem;letter-spacing:.1em;}
 .row dd .sub{display:block;font-size:.82rem;color:var(--muted);margin-top:4px;}
+/* 上樓說明：跟地址分開一段，左邊一條細線提示「到了現場要看這個」 */
+.row dd .access{margin-top:10px;padding-left:10px;border-left:2px solid var(--gold);line-height:1.8;color:var(--ink);}
 .row dd .tbd{color:var(--thread);font-size:.86rem;}
 .copy{
   appearance:none;border:1px solid var(--edge);background:transparent;
