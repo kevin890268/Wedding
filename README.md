@@ -5,7 +5,8 @@
 純靜態網站，沒有 build step、沒有套件相依。直接丟 GitHub Pages 就能用。
 線上版：https://kevin890268.github.io/Wedding/
 
-> 設計構想、待辦與尚未定案的討論都在 [ideas.md](ideas.md)。
+> 設計構想與尚未定案的討論在 [ideas.md](ideas.md)。
+> 網站、Google 表單、LINE 官方帳號的現況與待辦在 [WORKLOG.md](WORKLOG.md)。
 
 ---
 
@@ -30,6 +31,7 @@ python -m http.server 5599
 | 祝福牆 | 留言板，後端是 Google Apps Script + 試算表 | `js/guestbook.js` |
 | 倒數 | 距離婚禮的天時分秒 | `js/site.js` |
 | 頁尾 | 姓名、聯絡方式、加入行事曆（.ics） | `js/site.js` |
+| 婚禮資訊獨立頁 | `info.html`：只有婚禮資訊、不載繪本，給 LINE 圖文選單用 | `js/site.js` |
 
 ---
 
@@ -37,7 +39,8 @@ python -m http.server 5599
 
 ```
 Wedding/
-├── index.html              頁面骨架（157 行）
+├── index.html              頁面骨架
+├── info.html               婚禮資訊獨立頁（LINE 圖文選單連過來）
 ├── data.js                 全站文案與設定 ← 改字只動這裡
 ├── css/main.css
 ├── js/
@@ -55,8 +58,11 @@ Wedding/
 │   ├── tilt_preview.py     輸出靜態圖檢查視差分層
 │   ├── tilt_gif.py         輸出傾斜動畫 GIF
 │   ├── guestbook.gs        祝福牆後端，貼到 Google Apps Script
+│   ├── richmenu.ps1        產生 LINE 圖文選單圖片 line/richmenu.png
 │   └── wishes.sample.json  祝福牆假資料，部署前預覽版面用
-├── rsvp-form.md            出席回覆表單的題目草稿
+├── line/                   LINE 官方帳號：後台設定步驟、文案、圖文選單圖片
+├── rsvp-form.md            出席回覆表單的最初草稿（線上現況見 WORKLOG.md）
+├── WORKLOG.md              工作紀錄：網站／表單／LINE 現況、決策與待辦
 ├── ideas.md                設計構想與待辦
 └── .claude/launch.json     本機預覽設定
 ```
