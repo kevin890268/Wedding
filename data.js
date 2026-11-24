@@ -183,7 +183,7 @@ window.SITE = {
      不是網址列上的 /viewform —— 少了 embedded=true 會多一層外框。 */
   rsvp: {
     url: null,                        // TODO https://docs.google.com/forms/d/e/…/viewform?embedded=true
-    deadline: '2027-03-17',           // 回覆截止（婚禮前一個月）
+    deadline: '2027-02-17',           // 回覆截止（婚禮前兩個月）
     /* 表單開放前、以及截止後會顯示這裡。Google Form 不會自己關，
        截止日到了要自己去表單設定把「接受回覆」關掉。 */
     contacts: [                       // TODO 無法線上填寫時的備援聯絡方式

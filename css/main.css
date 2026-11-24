@@ -337,6 +337,7 @@ a{color:inherit;}
 
 /* ========== 5 祝福牆 ========== */
 #gbForm{display:grid;gap:12px;margin-bottom:clamp(28px,5vh,44px);}
+#gbForm[hidden]{display:none;}   /* 上面的 display:grid 會蓋過 hidden 屬性，後端未部署時表單要藏起來 */
 #gbForm input,#gbForm textarea{
   width:100%;padding:13px 15px;border:1px solid var(--edge);border-radius:2px;
   background:rgba(255,255,255,.6);font:inherit;font-size:.94rem;color:var(--ink);

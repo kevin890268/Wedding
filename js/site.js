@@ -46,13 +46,27 @@ var dateOK  = !isNaN(startAt.getTime());
   /* 保險：3 秒後就算還沒好也放行，長輩不會卡在封面 */
   setTimeout(function () { if (!ready) load.textContent = ''; }, 3000);
 
-  btn.addEventListener('click', function () {
+  function openBook() {
     el.classList.add('gone');
     document.body.classList.remove('locked');
-    if (window.BOOK && window.BOOK.enableTilt) window.BOOK.enableTilt();  /* iOS 陀螺儀需手勢 */
     var fab = $('rsvpFab');
     if (fab) setTimeout(function () { fab.classList.add('show'); }, 600);
+  }
+
+  btn.addEventListener('click', function () {
+    openBook();
+    if (window.BOOK && window.BOOK.enableTilt) window.BOOK.enableTilt();  /* iOS 陀螺儀需手勢 */
   });
+
+  /* 從外部連結（例如 LINE 圖文選單）帶 #info、#rsvp 等錨點進來時，
+     跳過封面直接到該區塊；否則賓客會先卡在封面，按了也不會跳過去。 */
+  var target = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
+  if (target && target !== el) {
+    openBook();
+    target.scrollIntoView({ behavior: 'auto' });
+    /* 圖片與字型載完版面可能再位移，載完再對齊一次 */
+    addEventListener('load', function () { target.scrollIntoView({ behavior: 'auto' }); });
+  }
 })();
 
 /* ---------- 3 婚禮資訊 ---------- */
